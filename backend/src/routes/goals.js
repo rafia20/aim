@@ -37,7 +37,7 @@ router.get('/', (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/user-goals', auth, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   const { goal_id, intake_answers } = req.body;
   if (!goal_id) return res.status(400).json({ error: 'goal_id is required' });
 
@@ -84,7 +84,7 @@ router.post('/user-goals', auth, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.post('/baselines', auth, async (req, res) => {
+router.post('/', auth, async (req, res) => {
   const { user_goal_id, metric, value, photo_url } = req.body;
   if (!user_goal_id || !metric) return res.status(400).json({ error: 'user_goal_id and metric are required' });
 
@@ -115,7 +115,7 @@ router.post('/baselines', auth, async (req, res) => {
  *     security:
  *       - bearerAuth: []
  */
-router.get('/user-goals', auth, async (req, res) => {
+router.get('/', auth, async (req, res) => {
   try {
     const result = await db.query(
       `SELECT ug.*, g.name, g.evidence_tier, g.timeline_weeks, g.endpoint

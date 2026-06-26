@@ -3,7 +3,7 @@ const db = require('../db');
 const auth = require('../middleware/auth');
 const { getModule } = require('../modules');
 const { evaluateTargets } = require('../engine/rulesEngine');
-const { generateMealPlan, generateGroceryItems } = require('../ai/gemini');
+const { generateMealPlan } = require('../ai/gemini');
 const { addDisclaimer } = require('../middleware/safety');
 
 const router = express.Router();
@@ -60,49 +60,26 @@ router.post('/generate', auth, async (req, res) => {
 
 /**
  * @swagger
- * /grocery-lists/generate:
- *   post:
- *     summary: Generate a priced grocery list from a meal plan
+ * /meal-plans/latest/{userGoalId}:
+ *   get:
+ *     summary: Get the latest meal plan for a user goal
  *     security:
  *       - bearerAuth: []
  */
-router.post('/grocery/generate', auth, async (req, res) => {
-  const { meal_plan_id } = req.body;
-  if (!meal_plan_id) return res.status(400).json({ error: 'meal_plan_id is required' });
-
+router.get('/latest/:userGoalId', auth, async (req, res) => {
   try {
-    const mpResult = await db.query(
-      `SELECT mp.*, ug.user_id, ug.goal_id, u.city, u.budget_weekly
-       FROM meal_plans mp
-       JOIN user_goals ug ON ug.id=mp.user_goal_id
-       JOIN users u ON u.id=ug.user_id
-       WHERE mp.id=$1 AND ug.user_id=$2`,
-      [meal_plan_id, req.userId]
-    );
-    if (mpResult.rows.length === 0) return res.status(404).json({ error: 'Meal plan not found' });
-    const mp = mpResult.rows[0];
-
-    const module = getModule(mp.goal_id);
-    const grocery = await generateGroceryItems({ mealPlan: mp.items, module });
-
-    // Estimate total cost
-    const totalCost = grocery.items.reduce((sum, item) => sum + (item.est_price_usd || 0), 0);
-
     const result = await db.query(
-      `INSERT INTO grocery_lists (meal_plan_id, items, total_cost) VALUES ($1,$2,$3) RETURNING *`,
-      [meal_plan_id, JSON.stringify(grocery.items), totalCost]
+      `SELECT mp.* FROM meal_plans mp
+       JOIN user_goals ug ON ug.id=mp.user_goal_id
+       WHERE mp.user_goal_id=$1 AND ug.user_id=$2
+       ORDER BY mp.created_at DESC LIMIT 1`,
+      [req.params.userGoalId, req.userId]
     );
-
-    const overBudget = mp.budget_weekly && totalCost > mp.budget_weekly;
-    res.status(201).json(addDisclaimer({
-      groceryList: result.rows[0],
-      totalCost,
-      overBudget,
-      budget: mp.budget_weekly,
-    }));
+    if (result.rows.length === 0) return res.status(404).json({ error: 'No meal plan found' });
+    res.json({ mealPlan: result.rows[0] });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ error: 'Failed to generate grocery list' });
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

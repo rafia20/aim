@@ -9,6 +9,7 @@ export default function PlanView() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const [plan, setPlan] = useState(null);
+  const [planId, setPlanId] = useState(null);
   const [targets, setTargets] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,6 +24,7 @@ export default function PlanView() {
         intake_answers: state?.intakeAnswers || {},
       });
       setPlan(res.data.mealPlan.items);
+      setPlanId(res.data.mealPlan.id);
       setTargets(res.data.targets);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to generate plan');
@@ -44,8 +46,8 @@ export default function PlanView() {
               Track
             </button>
             <button
-              onClick={() => navigate(`/grocery/${userGoalId}`, { state: { planId: plan?.id } })}
-              disabled={!plan}
+              onClick={() => navigate(`/grocery/${userGoalId}`, { state: { planId } })}
+              disabled={!planId}
               className="text-sm bg-stone-800 text-white px-3 py-1.5 rounded-lg hover:bg-stone-900 disabled:opacity-40"
             >
               Grocery list →

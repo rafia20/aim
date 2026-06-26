@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { useParams, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import api from '../lib/api';
 
 export default function GroceryView() {
   const { userGoalId } = useParams();
   const { state } = useLocation();
+  const navigate = useNavigate();
+  const [planId, setPlanId] = useState(state?.planId || null);
   const [grocery, setGrocery] = useState(null);
   const [totalCost, setTotalCost] = useState(null);
   const [overBudget, setOverBudget] = useState(false);
@@ -12,13 +14,23 @@ export default function GroceryView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  // Auto-fetch latest meal plan ID if not passed via state
+  useEffect(() => {
+    if (!planId && userGoalId) {
+      api.get(`/meal-plans/latest/${userGoalId}`)
+        .then(res => setPlanId(res.data.mealPlan.id))
+        .catch(() => setError('No meal plan found. Generate a meal plan first.'));
+    }
+  }, [planId, userGoalId]);
+
   async function generateGrocery() {
-    if (!state?.planId) return setError('No meal plan found. Generate a meal plan first.');
+    if (!planId) return setError('No meal plan found. Generate a meal plan first.');
     setLoading(true);
     setError('');
     try {
-      const res = await api.post('/grocery-lists/generate', { meal_plan_id: state.planId });
-      setGrocery(JSON.parse(res.data.groceryList.items));
+      const res = await api.post('/grocery-lists/generate', { meal_plan_id: planId });
+      const items = res.data.groceryList.items;
+      setGrocery(typeof items === 'string' ? JSON.parse(items) : items);
       setTotalCost(res.data.totalCost);
       setOverBudget(res.data.overBudget);
       setBudget(res.data.budget);
